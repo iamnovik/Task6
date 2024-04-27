@@ -202,12 +202,13 @@
             let tempc = context.strokeStyle;
             let temps = context.lineWidth;
             drawingData.forEach(figure => {
+                context.lineWidth = figure.size;
                 if (figure.isErased) {
                        context.globalCompositeOperation = 'destination-out';
                 } else {
                         context.globalCompositeOperation = 'source-over';
                         context.strokeStyle = figure.color; // Цвет рисунка
-                        context.lineWidth = figure.size;
+                        
                 }
                 if (figure.shape === 'line'){
                     context.beginPath();
