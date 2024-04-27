@@ -37,3 +37,4 @@ D:\ItTransition\task6\task6\obj\Debug\net8.0\refint\task6.dll
 D:\ItTransition\task6\task6\obj\Debug\net8.0\task6.pdb
 D:\ItTransition\task6\task6\obj\Debug\net8.0\task6.genruntimeconfig.cache
 D:\ItTransition\task6\task6\obj\Debug\net8.0\ref\task6.dll
+D:\ItTransition\task6\task6\obj\Debug\net8.0\task6.sourcelink.json

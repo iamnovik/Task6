@@ -42,6 +42,8 @@
 <div id="toolbar">
     <input type="range" min="1" max="10" value="2" class="slider" id="lineWidthSlider">
     <input type="color" id="colorPicker" onchange="changeColor()" value="#000000" style="margin-right: auto;">
+    <button class="tool-button" onclick="toggleShape('rectangle','square')"><i id="square" class="fas fa-square"></i></button>
+        <button class="tool-button" onclick="toggleShape('circle','circle')"><i id="circle" class="fas fa-circle"></i></button>
     <button class="tool-button" onclick="toggleEraser()"><i id="eraser-icon" class="fas fa-eraser"></i></button>
     <button class="tool-button" onclick="clearCanvas()"><i class="fas fa-trash"></i></button>
     <a id="downloadLink" style="display: none;"></a>
@@ -88,6 +90,19 @@
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mousemove', draw);
         
+        var currentShape = 'line';
+        
+        function toggleShape(shape, figure) {
+            var Icon = document.getElementById(figure);
+            if (currentShape === shape) {
+                Icon.style.color = '';
+                currentShape = 'line';
+            } else {
+                currentShape = shape;
+                 Icon.style.color = 'red';
+            }
+        }
+        
         document.getElementById('lineWidthSlider').addEventListener('input', function() {
             context.lineWidth = this.value;
         });
@@ -117,8 +132,21 @@
        }
 
        
-       function stopDrawing() {
-           isDrawing = false;
+       function stopDrawing(e) {
+            isDrawing = false;
+           var rect = canvas.getBoundingClientRect(); // Получаем размеры и положение элемента canvas
+           var x = e.offsetX + rect.left; // Вычитаем положение элемента canvas из координаты мыши
+           var y = e.offsetY;
+           if (currentShape === 'circle'){
+                    context.beginPath();
+                        context.arc((lastX + x) / 2, (lastY + y)/2, (y - lastY)/2, 0, Math.PI * 2, false);
+                        context.stroke();
+           }else if (currentShape === 'rectangle'){
+               context.beginPath();
+               context.rect(lastX, lastY,x - lastX , y - lastY);
+               context.stroke();
+           }
+
            var tableId = @Model;
            // Отправка рисунка на сервер через SignalR только при остановке рисования
            connection.invoke("SendDrawingUpdate", tableId, drawingData).catch(err => console.error(err.toString()));
@@ -136,22 +164,26 @@
        }
        
        function draw(e) {
-           var rect = canvas.getBoundingClientRect(); // Получаем размеры и положение элемента canvas
-               var x = e.offsetX + rect.left; // Вычитаем положение элемента canvas из координаты мыши
-               var y = e.offsetY;
+           
            if (!isDrawing) return;
-           context.beginPath();
-           context.moveTo(lastX, lastY);
-           context.lineTo(x, y);
-           if (isErasing) {
-               context.globalCompositeOperation = 'destination-out';
-               
-           } else {
-               context.globalCompositeOperation = 'source-over';
+           if (currentShape === 'line'){
+                var rect = canvas.getBoundingClientRect(); // Получаем размеры и положение элемента canvas
+                                          var x = e.offsetX + rect.left; // Вычитаем положение элемента canvas из координаты мыши
+                                          var y = e.offsetY;
+                           context.beginPath();
+                           context.moveTo(lastX, lastY);
+                           context.lineTo(x, y);
+                           if (isErasing) {
+                               context.globalCompositeOperation = 'destination-out';
+                               
+                           } else {
+                               context.globalCompositeOperation = 'source-over';
+                           }
+                           context.stroke();
+                           drawingData.push({from: {x: lastX, y: lastY}, to: {x: x, y: y}, isErased: isErasing, color: context.strokeStyle, size: context.lineWidth});
+                           [lastX, lastY] = [x, y];
            }
-           context.stroke();
-           drawingData.push({from: {x: lastX, y: lastY}, to: {x: x, y: y}, isErased: isErasing, color: context.strokeStyle, size: context.lineWidth});
-           [lastX, lastY] = [x, y];
+           
        }
 
         connection.on("ReceiveDrawingUpdate", (drawingData) => {
