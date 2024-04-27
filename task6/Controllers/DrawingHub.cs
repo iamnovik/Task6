@@ -28,10 +28,10 @@ public class DrawingHub : Hub
         var lastDrawing = _dbContext.Drawings.Where(d => d.TableId == tableId);
         if (lastDrawing != null)
         {
-            List<Line> drawings = new List<Line>();
+            List<Figure> drawings = new List<Figure>();
             foreach (var draw in lastDrawing)
             {
-                var drawingData = JsonConvert.DeserializeObject<List<Line>>(draw.DrawingData);
+                var drawingData = JsonConvert.DeserializeObject<List<Figure>>(draw.DrawingData);
                 foreach (var dLine in drawingData)
                 {
                     drawings.Add( dLine);
@@ -52,7 +52,7 @@ public class DrawingHub : Hub
     }
 
     
-    public async Task SendDrawingUpdate(int tableId, List<Line> drawingData)
+    public async Task SendDrawingUpdate(int tableId, List<Figure> drawingData)
     {
         var drawing = new Drawing
         {
@@ -78,8 +78,9 @@ public class DrawingHub : Hub
 
 }
 
-public class Line
+public class Figure
 {
+    public string shape { get; set; }
     public int size { get; set; }
     public string color { get; set; }
     public bool isErased { get; set; }

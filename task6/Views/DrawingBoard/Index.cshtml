@@ -42,7 +42,7 @@
 <div id="toolbar">
     <input type="range" min="1" max="10" value="2" class="slider" id="lineWidthSlider">
     <input type="color" id="colorPicker" onchange="changeColor()" value="#000000" style="margin-right: auto;">
-    <button class="tool-button" onclick="toggleShape('rectangle','square')"><i id="square" class="fas fa-square"></i></button>
+    <button class="tool-button" onclick="toggleShape('rectangle','rectangle')"><i id="rectangle" class="fas fa-square"></i></button>
         <button class="tool-button" onclick="toggleShape('circle','circle')"><i id="circle" class="fas fa-circle"></i></button>
     <button class="tool-button" onclick="toggleEraser()"><i id="eraser-icon" class="fas fa-eraser"></i></button>
     <button class="tool-button" onclick="clearCanvas()"><i class="fas fa-trash"></i></button>
@@ -95,9 +95,12 @@
         function toggleShape(shape, figure) {
             var Icon = document.getElementById(figure);
             if (currentShape === shape) {
+                
                 Icon.style.color = '';
                 currentShape = 'line';
             } else {
+                document.getElementById('circle').style.color = '';
+                 document.getElementById('rectangle').style.color = '';
                 currentShape = shape;
                  Icon.style.color = 'red';
             }
@@ -137,13 +140,21 @@
            var rect = canvas.getBoundingClientRect(); // Получаем размеры и положение элемента canvas
            var x = e.offsetX + rect.left; // Вычитаем положение элемента canvas из координаты мыши
            var y = e.offsetY;
+            if (isErasing) {
+                context.globalCompositeOperation = 'destination-out';
+                                          
+            } else {
+                context.globalCompositeOperation = 'source-over';
+            }
            if (currentShape === 'circle'){
                     context.beginPath();
                         context.arc((lastX + x) / 2, (lastY + y)/2, (y - lastY)/2, 0, Math.PI * 2, false);
+                        drawingData.push({from: {x: lastX, y: lastY}, to: {x: x, y: y}, isErased: isErasing, color: context.strokeStyle, size: context.lineWidth, shape : currentShape});
                         context.stroke();
            }else if (currentShape === 'rectangle'){
                context.beginPath();
                context.rect(lastX, lastY,x - lastX , y - lastY);
+               drawingData.push({from: {x: lastX, y: lastY}, to: {x: x, y: y}, isErased: isErasing, color: context.strokeStyle, size: context.lineWidth, shape : currentShape});
                context.stroke();
            }
 
@@ -180,7 +191,7 @@
                                context.globalCompositeOperation = 'source-over';
                            }
                            context.stroke();
-                           drawingData.push({from: {x: lastX, y: lastY}, to: {x: x, y: y}, isErased: isErasing, color: context.strokeStyle, size: context.lineWidth});
+                           drawingData.push({from: {x: lastX, y: lastY}, to: {x: x, y: y}, isErased: isErasing, color: context.strokeStyle, size: context.lineWidth, shape : currentShape});
                            [lastX, lastY] = [x, y];
            }
            
@@ -190,17 +201,29 @@
             console.log("update")
             let tempc = context.strokeStyle;
             let temps = context.lineWidth;
-            drawingData.forEach(line => {
-                context.beginPath();
-                context.moveTo(line.from.x, line.from.y);
-                context.lineTo(line.to.x, line.to.y);
-                if (line.isErased) {
-                            context.globalCompositeOperation = 'destination-out';
-                        } else {
-                            context.globalCompositeOperation = 'source-over';
-                            context.strokeStyle = line.color; // Цвет рисунка
-                            context.lineWidth = line.size;
-                        }
+            drawingData.forEach(figure => {
+                if (figure.isErased) {
+                       context.globalCompositeOperation = 'destination-out';
+                } else {
+                        context.globalCompositeOperation = 'source-over';
+                        context.strokeStyle = figure.color; // Цвет рисунка
+                        context.lineWidth = figure.size;
+                }
+                if (figure.shape === 'line'){
+                    context.beginPath();
+                                    context.moveTo(figure.from.x, figure.from.y);
+                                    context.lineTo(figure.to.x, figure.to.y);
+                }else if (figure.shape === 'circle'){
+                                          context.beginPath();
+                                              context.arc((figure.from.x + figure.to.x) / 2, (figure.from.y + figure.to.y)/2, (figure.to.y - figure.from.y)/2, 0, Math.PI * 2, false);
+                                              
+
+                                 }else if (figure.shape === 'rectangle'){
+                                     context.beginPath();
+                                     context.rect(figure.from.x, figure.from.y,figure.to.x - figure.from.x , figure.to.y - figure.from.y);
+                                 }
+                
+                
                 context.stroke();
             });
             context.strokeStyle = tempc;

@@ -22,18 +22,4 @@ public class DrawingBoardController : Controller
         return View(tableId);
     }
 
-    [HttpPost]
-    public async Task<IActionResult> SaveDrawing(int tableId, List<Line> drawingData)
-    {
-        var drawing = new Drawing
-        {
-            TableId = tableId,
-            DrawingData = JsonConvert.SerializeObject(drawingData),
-            CreatedAt = DateTime.UtcNow
-        };
-        _dbContext.Drawings.Add(drawing);
-        await _dbContext.SaveChangesAsync();
-
-        return Ok();
-    }
 }
