@@ -1,0 +1,184 @@
+﻿<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <title>Draw Board</title>
+    <style>
+            body, html {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                width: 100%;
+            }
+            #draw-board {
+                width: 100%;
+                height: 100%;
+                cursor: crosshair;
+                border: 2px solid black;
+            }
+             #toolbar {
+                        width: 100%;
+                        height: 10%;
+                        background-color: #f0f0f0;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        padding: 0 10px;
+                    }
+                    /* Стили для кнопок на панели инструментов */
+                    .tool-button {
+                        margin: 0 10px;
+                        padding: 10px;
+                        border: none;
+                        cursor: pointer;
+                    }
+
+        </style>
+</head>
+<body>
+<div id="toolbar">
+    <input type="range" min="1" max="10" value="2" class="slider" id="lineWidthSlider">
+    <input type="color" id="colorPicker" onchange="changeColor()" value="#000000" style="margin-right: auto;">
+    <button class="tool-button" onclick="toggleEraser()"><i id="eraser-icon" class="fas fa-eraser"></i></button>
+    <button class="tool-button" onclick="clearCanvas()"><i class="fas fa-trash"></i></button>
+    <a id="downloadLink" style="display: none;"></a>
+    <button onclick="exportDrawing()"><i class="fas fa-download"></i></button>
+
+
+</div>
+    <canvas id="draw-board"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.3/signalr.min.js"></script>
+<script>
+        const canvas = document.getElementById('draw-board');
+         canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+        const context = canvas.getContext('2d');
+        
+       
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/drawinghub")
+            .build();
+
+        connection.start().then(() => {
+            console.log("Connected to hub.");
+            var tableId = @Model; // Получение tableId из модели
+            connection.invoke("JoinGroup", tableId).catch(err => console.error(err.toString()));
+            connection.invoke("LoadLastDrawing", connection.connectionId, tableId).catch(err => console.error(err.toString()));
+        }).catch(err => console.error(err.toString()));
+        
+        window.onbeforeunload = function() {
+            var tableId = @Model;
+            connection.invoke("LeaveGroup", tableId).catch(err => console.error(err.toString()));
+        };
+        
+        function exportDrawing() {
+                var dataUrl = canvas.toDataURL("image/png");
+                var downloadLink = document.getElementById('downloadLink');
+                downloadLink.href = dataUrl;
+                downloadLink.download = 'drawing.png';
+                downloadLink.click();
+            }
+
+        
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mousemove', draw);
+        
+        document.getElementById('lineWidthSlider').addEventListener('input', function() {
+            context.lineWidth = this.value;
+        });
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let isErasing = false;
+       let drawingData = [];
+       let rect = canvas.getBoundingClientRect();
+       
+       function startDrawing(e) {
+           isDrawing = true;
+           var rect = canvas.getBoundingClientRect(); 
+           [lastX, lastY] = [e.offsetX + rect.left, e.offsetY];
+       }
+       
+       function clearCanvas() {
+           context.clearRect(0, 0, canvas.width, canvas.height);
+           var tableId = @Model;
+           connection.invoke("ClearDrawing", tableId).catch(err => console.error(err.toString()));
+       }
+        
+       function changeColor() {
+           var colorPicker = document.getElementById('colorPicker');
+           context.strokeStyle = colorPicker.value;
+       }
+
+       
+       function stopDrawing() {
+           isDrawing = false;
+           var tableId = @Model;
+           // Отправка рисунка на сервер через SignalR только при остановке рисования
+           connection.invoke("SendDrawingUpdate", tableId, drawingData).catch(err => console.error(err.toString()));
+           drawingData = []; // Очистка данных рисунка после отправки
+       }
+       
+       function toggleEraser() {
+           isErasing = !isErasing;
+           var eraserIcon = document.getElementById('eraser-icon');
+           if (isErasing) {
+               eraserIcon.style.color = 'red'; // Иконка "загорается" красным цветом
+           } else {
+               eraserIcon.style.color = ''; // Иконка возвращается к обычному цвету
+           }
+       }
+       
+       function draw(e) {
+           var rect = canvas.getBoundingClientRect(); // Получаем размеры и положение элемента canvas
+               var x = e.offsetX + rect.left; // Вычитаем положение элемента canvas из координаты мыши
+               var y = e.offsetY;
+           if (!isDrawing) return;
+           context.beginPath();
+           context.moveTo(lastX, lastY);
+           context.lineTo(x, y);
+           if (isErasing) {
+               context.globalCompositeOperation = 'destination-out';
+               
+           } else {
+               context.globalCompositeOperation = 'source-over';
+           }
+           context.stroke();
+           drawingData.push({from: {x: lastX, y: lastY}, to: {x: x, y: y}, isErased: isErasing, color: context.strokeStyle, size: context.lineWidth});
+           [lastX, lastY] = [x, y];
+       }
+
+        connection.on("ReceiveDrawingUpdate", (drawingData) => {
+            console.log("update")
+            let tempc = context.strokeStyle;
+            let temps = context.lineWidth;
+            drawingData.forEach(line => {
+                context.beginPath();
+                context.moveTo(line.from.x, line.from.y);
+                context.lineTo(line.to.x, line.to.y);
+                if (line.isErased) {
+                            context.globalCompositeOperation = 'destination-out';
+                        } else {
+                            context.globalCompositeOperation = 'source-over';
+                            context.strokeStyle = line.color; // Цвет рисунка
+                            context.lineWidth = line.size;
+                        }
+                context.stroke();
+            });
+            context.strokeStyle = tempc;
+            context.lineWidth = temps;
+        });
+       
+       connection.on("ReceiveClearDrawing", () => {
+           context.clearRect(0, 0, canvas.width, canvas.height);
+       });
+
+    </script>
+</body>
+</html>

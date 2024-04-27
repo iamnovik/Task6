@@ -1,0 +1,39 @@
+﻿@model List<Table>
+
+
+<style>
+   h1{
+        text-align: center;
+   }
+    .form-container {
+        display: flex; /* Делает контейнер flex-контейнером */
+        justify-content: center; /* Центрирует содержимое по горизонтали */
+        align-items: center; /* Центрирует содержимое по вертикали */
+        margin-bottom: 20px; /* Отступ снизу */
+    }
+
+</style>
+<h1>Available boards</h1>
+<div class="form-container">
+    <form method="post" action="/Home/CreateTable">
+        <label for="tableName">Drawing board name:</label>
+        <input type="text" id="tableName" name="tableName" required>
+        <input type="submit" value="Create new board">
+    </form>
+</div>
+
+<ul>
+    <div class="row">
+        @foreach (var table in Model)
+        {
+            <div class="col-sm-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@table.Name</h5>
+                        <a href="@Url.Action("Index", "DrawingBoard", new { tableId = table.Id })" class="btn btn-primary">Открыть</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</ul>
